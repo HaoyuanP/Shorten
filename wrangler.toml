@@ -6,7 +6,7 @@ main = "workers-site/index.js"
 workers_dev = false
 
 # here is the place to bound the custom domain that you want
-route = { pattern = "revyth.com", custom_domain = true }
+route = { pattern = "", custom_domain = true }
 
 
 kv_namespaces = [
