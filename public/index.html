@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Shorten my URL</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3"></script>
+
+    <link rel="stylesheet" href="static/style.css"/>
+</head>
+<body>
+<div id="app">
+    <div class="container">
+        <h1>Shorten a URL</h1>
+        <p>
+            Fill in the URL you want to shorten below.
+        </p>
+
+        <form @submit.prevent="handleUrlSubmit">
+            <input
+                    type="text"
+                    id="input-url"
+                    name="url"
+                    size="40"
+                    placeholder="https://google.com"
+                    required
+                    v-model="longUrl"
+            />
+            <input
+                    type="text"
+                    id="input-slug"
+                    name="slug"
+                    size="40"
+                    placeholder="custom-slug (optional)"
+                    v-model="customSlug"
+            />
+            <input type="submit" id="input-submit" value="Shorten"/>
+        </form>
+
+
+        <div class="message error" v-if="error">
+            <p>
+                Error shortening your link. Please ensure it's a valid URL and
+                starts with http:// or https://
+            </p>
+        </div>
+
+        <div class="message" v-if="shortUrl">
+            <p>Your new shortened URL is:</p>
+            <h2>{{ shortUrl }}</h2>
+            <div v-if="qrCodeUrl">
+                <p>QR Code:</p>
+                <img :src="qrCodeUrl" alt="QR Code"/>
+            </div>
+        </div>
+        <div>
+            <button id="download-svg-btn" @click="downloadSvg(qrCodeUrl)">Download QR Code as SVG</button>
+        </div>
+
+    </div>
+</div>
+</body>
+<script>
+    const app = Vue.createApp({
+        data() {
+            return {
+                longUrl: null,
+                customSlug: '', // Add this line
+                shortUrl: null,
+                qrCodeUrl: null,
+                error: false,
+                errorMessage: null,
+            };
+        },
+        methods: {
+            downloadSvg() {
+                const backendQRUrl = `/generate-qr?data=${encodeURIComponent(this.shortUrl)}`;
+                fetch(backendQRUrl)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = 'qr-code.svg';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching SVG:', error);
+                        this.error = true;
+                    });
+            },
+
+            handleUrlSubmit() {
+                fetch('/links', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: this.longUrl,
+                        slug: this.customSlug, // Include the customSlug in the request
+                    }),
+                })
+                    .then((response) => {
+                        if (response.status === 200) {
+                            this.error = false;
+                            return response.json();
+                        } else {
+                            throw new Error('Issue saving URL');
+                        }
+                    })
+                    .then((data) => {
+                        this.shortUrl = data.shortened;
+                        this.qrCodeUrl = data.qrCodeURL; // Add this line
+                    })
+                    .catch((error) => {
+                        this.error = true;
+                    });
+            },
+        },
+    });
+    app.mount('#app');
+</script>
+</html>
